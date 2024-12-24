@@ -25,17 +25,15 @@ namespace CSoft
 
         public static async Task ListenToAsync<T>(Action<T> callback) where T : struct
         {
-            await Task.Run(() =>
+            if (_oneWayEvents.TryGetValue(typeof(T), out var events))
             {
-                if (_oneWayEvents.TryGetValue(typeof(T), out var events))
-                {
-                    events.Add(callback);
-                }
-                else
-                {
-                    _oneWayEvents.Add(typeof(T), new List<Delegate> { callback });
-                }
-            });
+                events.Add(callback);
+            }
+            else
+            {
+                _oneWayEvents.Add(typeof(T), new List<Delegate> { callback });
+            }
+                await Task.Yield();
         }
 
         public static void ListenTo<T1, T2>(Func<T1, T2> callback) where T1 : struct
@@ -52,17 +50,15 @@ namespace CSoft
 
         public static async Task ListenToAsync<T1, T2>(Func<T1, T2> callback) where T1 : struct
         {
-            await Task.Run(() =>
+            if (_twoWayEvents.TryGetValue(typeof(Func<T1, T2>), out var events))
             {
-                if (_twoWayEvents.TryGetValue(typeof(Func<T1, T2>), out var events))
-                {
-                    events.Add(callback);
-                }
-                else
-                {
-                    _twoWayEvents.Add(typeof(Func<T1, T2>), new List<Delegate> { callback });
-                }
-            });
+                events.Add(callback);
+            }
+            else
+            {
+                _twoWayEvents.Add(typeof(Func<T1, T2>), new List<Delegate> { callback });
+            }
+            await Task.Yield();
         }
 
         #endregion
@@ -82,17 +78,15 @@ namespace CSoft
 
         public static async Task TriggerAsync<T>(T e) where T : struct
         {
-            await Task.Run(() =>
+            if (_oneWayEvents.TryGetValue(typeof(T), out var events))
             {
-                if (_oneWayEvents.TryGetValue(typeof(T), out var events))
+                foreach (var ev in events)
                 {
-                    foreach (var ev in events)
-                    {
-                        var callback = ev as Action<T>;
-                        callback(e);
-                    }
+                    var callback = ev as Action<T>;
+                    callback(e);
                 }
-            });
+                await Task.Yield();
+            }
         }
 
         public static List<T2> Trigger<T1, T2>(T1 e) where T1 : struct
@@ -111,19 +105,17 @@ namespace CSoft
 
         public static async Task<List<T2>> TriggerAsync<T1, T2>(T1 e) where T1 : struct
         {
-            return await Task.Run(() =>
+            var returningValues = new List<T2>();
+            if (_twoWayEvents.TryGetValue(typeof(Func<T1, T2>), out var events))
             {
-                var returningValues = new List<T2>();
-                if (_twoWayEvents.TryGetValue(typeof(Func<T1, T2>), out var events))
+                foreach (var ev in events)
                 {
-                    foreach (var ev in events)
-                    {
-                        var callback = ev as Func<T1, T2>;
-                        returningValues.Add(callback(e));
-                    }
+                    var callback = ev as Func<T1, T2>;
+                    returningValues.Add(callback(e));
                 }
-                return returningValues;
-            });
+            }
+            await Task.Yield();
+            return returningValues;
         }
         #endregion
 
