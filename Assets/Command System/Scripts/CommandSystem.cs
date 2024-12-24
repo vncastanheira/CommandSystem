@@ -23,7 +23,7 @@ namespace CSoft
             }
         }
 
-        public static async Task ListenToAsync<T>(Action<T> callback) where T : struct
+        public static async Task ListenToAsync<T>(CommandAction<T> callback) where T : struct
         {
             if (_oneWayEvents.TryGetValue(typeof(T), out var events))
             {
@@ -33,7 +33,7 @@ namespace CSoft
             {
                 _oneWayEvents.Add(typeof(T), new List<Delegate> { callback });
             }
-                await Task.Yield();
+            await Task.Yield();
         }
 
         public static void ListenTo<T1, T2>(Func<T1, T2> callback) where T1 : struct
@@ -48,15 +48,15 @@ namespace CSoft
             }
         }
 
-        public static async Task ListenToAsync<T1, T2>(Func<T1, T2> callback) where T1 : struct
+        public static async Task ListenToAsync<T1, T2>(CommandFunc<T1, T2> callback) where T1 : struct
         {
-            if (_twoWayEvents.TryGetValue(typeof(Func<T1, T2>), out var events))
+            if (_twoWayEvents.TryGetValue(typeof(CommandFunc<T1, T2>), out var events))
             {
                 events.Add(callback);
             }
             else
             {
-                _twoWayEvents.Add(typeof(Func<T1, T2>), new List<Delegate> { callback });
+                _twoWayEvents.Add(typeof(CommandFunc<T1, T2>), new List<Delegate> { callback });
             }
             await Task.Yield();
         }
@@ -82,10 +82,9 @@ namespace CSoft
             {
                 foreach (var ev in events)
                 {
-                    var callback = ev as Action<T>;
-                    callback(e);
+                    var callbackAsync = ev as CommandAction<T>;
+                    await callbackAsync(e);
                 }
-                await Task.Yield();
             }
         }
 
@@ -106,11 +105,11 @@ namespace CSoft
         public static async Task<List<T2>> TriggerAsync<T1, T2>(T1 e) where T1 : struct
         {
             var returningValues = new List<T2>();
-            if (_twoWayEvents.TryGetValue(typeof(Func<T1, T2>), out var events))
+            if (_twoWayEvents.TryGetValue(typeof(CommandFunc<T1, T2>), out var events))
             {
                 foreach (var ev in events)
                 {
-                    var callback = ev as Func<T1, T2>;
+                    var callback = ev as CommandFunc<T1, T2>;
                     returningValues.Add(callback(e));
                 }
             }
@@ -130,21 +129,20 @@ namespace CSoft
             {
                 throw new UnityException("Could not find specified action in list of events.");
             }
+
         }
 
-        public static async void UnlistenToAsync<T>(Action<T> action) where T : struct
+        public static async Task UnlistenToAsync<T>(CommandAction<T> action) where T : struct
         {
-            await Task.Run(() =>
+            if (_oneWayEvents.TryGetValue(typeof(T), out var events))
             {
-                if (_oneWayEvents.TryGetValue(typeof(T), out var events))
-                {
-                    events.Remove(action);
-                }
-                else
-                {
-                    throw new UnityException("Could not find specified action in list of events.");
-                }
-            });
+                events.Remove(action);
+            }
+            else
+            {
+                throw new UnityException("Could not find specified action in list of events.");
+            }
+            await Task.Yield();
         }
 
         public static void UnlistenTo<T1, T2>(Func<T1, T2> action) where T1 : struct
@@ -159,11 +157,11 @@ namespace CSoft
             }
         }
 
-        public static async void UnlistenToAsync<T1, T2>(Func<T1, T2> action) where T1 : struct
+        public static async void UnlistenToAsync<T1, T2>(CommandFunc<T1, T2> action) where T1 : struct
         {
             await Task.Run(() =>
             {
-                if (_twoWayEvents.TryGetValue(typeof(Func<T1, T2>), out var events))
+                if (_twoWayEvents.TryGetValue(typeof(CommandFunc<T1, T2>), out var events))
                 {
                     events.Remove(action);
                 }
@@ -175,4 +173,7 @@ namespace CSoft
         }
         #endregion
     }
+
+    public delegate Task CommandAction<in T>(T obj);
+    public delegate T2 CommandFunc<in T1, out T2>(T1 arg);
 }
