@@ -48,7 +48,7 @@ namespace CSoft
             }
         }
 
-        public static async Task ListenToAsync<T1, T2>(CommandFunc<T1, T2> callback) where T1 : struct
+        public static async Task ListenToAsync<T1, T2>(CommandFunc<T1, Task<T2>> callback) where T1 : struct
         {
             if (_twoWayEvents.TryGetValue(typeof(CommandFunc<T1, T2>), out var events))
             {
@@ -157,7 +157,7 @@ namespace CSoft
             }
         }
 
-        public static async void UnlistenToAsync<T1, T2>(CommandFunc<T1, T2> action) where T1 : struct
+        public static async Task UnlistenToAsync<T1, T2>(CommandFunc<T1, Task<T2>> action) where T1 : struct
         {
             await Task.Run(() =>
             {
